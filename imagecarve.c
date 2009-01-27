@@ -10,6 +10,7 @@ static int verbose_flag = 0;	// Set by verbose flag.
 double tool_radius = 1.6;	// mm. radius of ball nose cutting tool.
 double stepover = 1;
 double max_cut = 8;		// mm. Max plunge depth.
+double zscale = 8;              // mm. Depth of image.
 double max_error = 0.01;	// mm
 double clear = 2;		// clearance Z-height. Top of work is assumed to be zero.
 double res = 0.5;		// Sampling size in mm.
@@ -110,7 +111,7 @@ retract(void)
 double
 min_height(I * img, double tx, double ty, double tradius)
 {
-  double z = -9;
+  double z = -9999;
 
   int dx, dy;
   int sx, sy, ex, ey;
@@ -146,7 +147,7 @@ min_height(I * img, double tx, double ty, double tradius)
 	continue;
       h += sqrt(tradius * tradius - d);
 
-      z = (z > h) ? z : h;	// max(z,h)
+      z = (z > h && z > -9999) ? z : h;	// max(z,h)
     }
   }
 
@@ -207,6 +208,11 @@ read_pgm(FILE * f)
   fscanf(f, "%d", &x);
   fscanf(f, "%d", &y);
   fscanf(f, "%d", &range);
+  if (range != 255) {
+    fprintf(stderr, "Sorry, can only handle 8-bit images for now.\n");
+    exit(1);
+  }
+
   img = malloc(sizeof(*img) + sizeof(img->data[0]) * x * y);
   img->xsize = x;
   img->ysize = y;
@@ -219,9 +225,7 @@ read_pgm(FILE * f)
     c = 0;
     fread(&c, sizeof(c), 1, f);
     img->data[i] = 1.0 * c / 256.0 - 1.0;
-    img->data[i] *= 9;
-    if (img->data[i] < -9)
-      img->data[i] = -9;
+    img->data[i] *= zscale;
   }
   fclose(f);
 
@@ -255,6 +259,7 @@ main(int argc, char *argv[])
     {"stepover", required_argument, 0, 'p'},
     {"zdepth", required_argument, 0, 'z'},
     {"scale", required_argument, 0, 's'},
+    {"clear", required_argument, 0, 'c'},
     {0, 0, 0, 0}
   };
 
@@ -263,7 +268,7 @@ main(int argc, char *argv[])
     int option_index = 0;
 
     char c =
-      getopt_long(argc, argv, "t:p:z:s:", long_options, &option_index);
+      getopt_long(argc, argv, "t:p:z:s:c:", long_options, &option_index);
 
     /* Detect the end of the options. */
     if (c == -1)
@@ -282,12 +287,15 @@ main(int argc, char *argv[])
       break;
 
     case 'z':
-      printf("option -c with value `%s'\n", optarg);
+      zscale = atof(optarg);
       break;
 
     case 's':
       res = atof(optarg);
       break;
+
+    case 'c':
+      clear = atof(optarg);
 
     case '?':
       /* getopt_long already printed an error message. */
