@@ -1,0 +1,11 @@
+This program is for early adoptors running on linux only at the moment.
+
+There's nothing hugely linux specific (hey, it may even compile in a
+cygwin environment), but I just haven't tested it.
+
+To compile:
+  make
+
+To use it: (assuming you have netpbm installed)
+
+  cat image.png | pngtopnm | pgmtopgm | ./imagecarve -t3.2 -s1 -
